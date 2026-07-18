@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AP127 DRY RUN — DA40 Cross-Country Chair Flight Trainer</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛩️</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=B612:ital,wght@0,400;0,700;1,400&family=B612+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header>
+  <div class="brand"><b>AP127 <em>DRY RUN</em></b><span>DA40 CS · XC CHAIR FLIGHT TRAINER · CATC HUA HIN</span></div>
+  <select id="route-sel" title="Active route"></select>
+  <div class="hdr-note"><b>TRAINING AID ONLY</b> — not for navigation.<br>Verify all freqs / data with current AIP Thailand &amp; AFM.</div>
+</header>
+
+<nav class="tabs">
+  <button class="tab-btn on" data-tab="dryrun">DRY RUN · MAP</button>
+  <button class="tab-btn" data-tab="navlog">NAV LOG</button>
+  <button class="tab-btn" data-tab="atc">ATC / RADIO</button>
+  <button class="tab-btn" data-tab="g1000">G1000</button>
+  <button class="tab-btn" data-tab="perf">PERF · W&amp;B</button>
+  <button class="tab-btn" data-tab="lessons">LESSONS</button>
+</nav>
+
+<main>
+
+<!-- ================= DRY RUN ================= -->
+<section class="tab-page on" id="page-dryrun">
+  <div class="sim-bar">
+    <button id="btn-startpause" class="primary">▶ START</button>
+    <span class="lbl">SPEED</span>
+    <select id="spd-sel">
+      <option value="1">1×</option><option value="2">2×</option>
+      <option value="4" selected>4×</option><option value="8">8×</option><option value="16">16×</option>
+    </select>
+    <label class="lbl"><input type="checkbox" id="follow" checked> FOLLOW</label>
+    <label class="lbl"><input type="checkbox" id="autoplay" checked> ATC VOICE</label>
+    <span class="lbl" style="margin-left:12px">MODE</span>
+    <button data-mode="pan" class="on">✋ PAN</button>
+    <button data-mode="draw">✎ DRAW</button>
+    <button data-mode="divert">⚠ DIVERT</button>
+    <button id="btn-clear-user" class="ghost">CLR DRAW</button>
+    <button id="btn-export" class="ghost">⬇ EXPORT</button>
+    <span class="lbl" style="margin-left:12px">W/V</span>
+    <input type="number" id="wind-dir" value="180" min="0" max="360" title="Wind direction °">
+    <input type="number" id="wind-spd" value="10" min="0" max="60" title="Wind speed kt">
+    <span id="draw-info"></span>
+    <div id="sim-stats">Ready — press START for the full chair flight. Click waypoints for briefing notes; ✎ DRAW adds your own points with comments; ⚠ DIVERT measures a diversion from present position.</div>
+  </div>
+  <div class="prog-track"><div id="sim-prog"></div></div>
+  <div id="map"></div>
+  <aside class="side">
+    <h4>PFD — G1000 REFERENCE</h4>
+    <div id="pfd-wrap"><canvas id="pfd"></canvas></div>
+    <h4>FLIGHT LOG</h4>
+    <div id="flight-log"></div>
+  </aside>
+</section>
+
+<!-- ================= NAV LOG ================= -->
+<section class="tab-page" id="page-navlog">
+  <div class="wrap">
+    <h2>NAV LOG — plan &amp; record</h2>
+    <div class="sub">Computed from route + W/V (set on the DRY RUN bar). Amber columns are <b>yours to fill</b> during the dry run — ATO, actual fuel, remarks. The ⏱ button stamps the current sim time. Everything saves locally per route.</div>
+    <div class="navlog-tools">
+      <button id="btn-print">🖨 PRINT LOG</button>
+      <span class="lbl">Block off 0900L assumed · RP = compulsory reporting point (blue rows)</span>
+    </div>
+    <div id="navlog-head"></div>
+    <div style="overflow-x:auto"><table id="navlog-table"></table></div>
+  </div>
+</section>
+
+<!-- ================= ATC ================= -->
+<section class="tab-page" id="page-atc">
+  <div class="wrap">
+    <h2>ATC / RADIO SCRIPT — full flight</h2>
+    <div class="sub">Every call of the active route in order. ▶ PLAY speaks the ATC side — answer OUT LOUD before showing the readback. Red cards are in-flight exercises. During the DRY RUN these fire automatically at the right position.</div>
+    <div id="atc-list"></div>
+  </div>
+</section>
+
+<!-- ================= G1000 ================= -->
+<section class="tab-page" id="page-g1000">
+  <div class="wrap">
+    <h2>G1000 — FLIGHT PLAN &amp; FLOWS</h2>
+    <div class="sub">The PFD on the DRY RUN tab is live during the sim (HSI, CDI, tapes). Below: the active flight plan page as the box would show it, plus the knob-flows to drill.</div>
+    <div class="grid2">
+      <div>
+        <h3 style="color:var(--mag);font-size:11px;letter-spacing:.16em;margin-bottom:8px">FPL — ACTIVE FLIGHT PLAN</h3>
+        <div id="g1000-fpl"><table></table></div>
+      </div>
+      <div>
+        <div class="g1000-note">
+          <b>DIRECT-TO:</b> [D→] → small knob spins char, big knob moves cursor → ENT → ENT (activate).<br><br>
+          <b>LOAD FPL:</b> FPL → cursor ON (push FMS knob) → spell waypoint → ENT … MENU → Store Flight Plan.<br><br>
+          <b>CDI SOURCE:</b> softkey CDI toggles GPS (magenta) / VLOC (green). For this VFR XC stay GPS.<br><br>
+          <b>NRST:</b> NRST page → nearest airports with BRG/DIS/rwy — your engine-failure friend. Drill: from any point of the route, find the nearest field in under 10 seconds.<br><br>
+          <b>OBS:</b> suspends auto-sequencing — use to hold over a fix. Push OBS again to resume.<br><br>
+          <b>Fuel:</b> FADEC/engine page — cross-check fuel flow vs the PERF tab plan at every FREDA.
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= PERF ================= -->
+<section class="tab-page" id="page-perf">
+  <div class="wrap">
+    <h2>DA40 CS — PERFORMANCE &amp; W&amp;B</h2>
+    <div class="sub">SAMPLE figures for chair-flying — always use the aircraft's AFM and actual W&amp;B sheet. Hours bookkeeping = block time (durMin).</div>
+    <div class="perf-grid">
+      <div class="perf-card"><h3>V-SPEEDS (KIAS)</h3><table id="vspeed-table"></table></div>
+      <div class="perf-card"><h3>CRUISE — MAP / RPM</h3><table id="cruise-table"></table>
+        <h3 style="margin-top:14px">DISTANCES (SL · ISA · MTOW)</h3><table id="todo-table"></table></div>
+      <div class="perf-card"><h3>FUEL PLAN — ACTIVE ROUTE</h3>
+        <select id="pwr-sel"></select>
+        <table id="fuel-out"></table></div>
+      <div class="perf-card"><h3>MASS &amp; BALANCE</h3>
+        <div id="wb-form">
+          <label>Pilot + front pax (kg) <input type="number" id="wb-front" value="150"></label>
+          <label>Rear passengers (kg) <input type="number" id="wb-rear" value="0"></label>
+          <label>Fuel kg (1 USG ≈ 2.72 kg) <input type="number" id="wb-fuelKg" value="80"></label>
+          <label>Baggage (kg, max 30) <input type="number" id="wb-bag" value="5"></label>
+        </div>
+        <table id="wb-table"></table>
+        <canvas id="wb-canvas" width="420" height="230"></canvas></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= LESSONS ================= -->
+<section class="tab-page" id="page-lessons">
+  <div class="wrap">
+    <h2>DRY-RUN LESSONS &amp; PHASES OF FLIGHT</h2>
+    <div class="sub">Six structured dry-run lessons, then every phase of flight as a checkable flow (progress saves locally).</div>
+    <div id="lesson-cards"></div>
+    <h2 style="margin-top:6px">PHASE CHECKLISTS — DA40 CS TRAINING FLOW</h2>
+    <div class="sub">Abridged for chair-flying. The AFM checklist in the cockpit is the law.</div>
+    <div id="phase-list"></div>
+  </div>
+</section>
+
+</main>
+
+<!-- modal -->
+<div id="modal"><div class="modal-box">
+  <div id="modal-body"></div>
+  <div class="modal-foot"><button id="modal-continue" class="primary">CONTINUE ▶</button></div>
+</div></div>
+
+<footer>AP127 DRY RUN · part of the AP127 ecosystem · <b>Training aid only — not for real-world navigation.</b> Frequencies, coordinates and performance are illustrative; verify with current AIP Thailand, NOTAMs and the DA40 AFM.</footer>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="js/data.js"></script>
+<script src="js/g1000.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

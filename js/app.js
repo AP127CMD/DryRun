@@ -19,6 +19,12 @@ function brg(a, b) {
   return (Math.atan2(y, x) * R2D + 360) % 360;
 }
 function interp(a, b, f) { return { lat: a.lat + (b.lat - a.lat) * f, lon: a.lon + (b.lon - a.lon) * f }; }
+function destPoint(lat, lon, brgTrue, dNM) {
+  const dR = dNM / 3440.065, br = brgTrue * D2R, la1 = lat * D2R, lo1 = lon * D2R;
+  const la2 = Math.asin(Math.sin(la1) * Math.cos(dR) + Math.cos(la1) * Math.sin(dR) * Math.cos(br));
+  const lo2 = lo1 + Math.atan2(Math.sin(br) * Math.sin(dR) * Math.cos(la1), Math.cos(dR) - Math.sin(la1) * Math.sin(la2));
+  return { lat: la2 * R2D, lon: lo2 * R2D };
+}
 const VAR = 0.5; // magnetic variation ~0.5°W in this area → MC = TC + 0.5
 function windTriangle(tc, tas, wdir, wspd) {
   const awa = (wdir - tc) * D2R;
@@ -38,8 +44,9 @@ function routeLegs(rt) {
   for (let i = 0; i < rt.wpts.length - 1; i++) {
     const a = rt.wpts[i], b = rt.wpts[i + 1];
     const tc = brg(a, b), d = distNM(a, b);
-    const w = windTriangle(tc, DATA.aircraft.tas, wind.dir, wind.spd);
-    legs.push({ from: a, to: b, tc, mc: (tc + VAR + 360) % 360, dist: d, wca: w.wca, hdg: (tc + VAR + w.wca + 360) % 360, gs: w.gs, ete: d / w.gs * 60 });
+    const tas = +a.spd || DATA.aircraft.tas;      // per-waypoint speed change (FPL input)
+    const w = windTriangle(tc, tas, wind.dir, wind.spd);
+    legs.push({ from: a, to: b, tc, mc: (tc + VAR + 360) % 360, dist: d, wca: w.wca, hdg: (tc + VAR + w.wca + 360) % 360, gs: w.gs, ete: d / w.gs * 60, tas });
   }
   return legs;
 }
@@ -56,6 +63,14 @@ function posAlong(rt, s) {           // s NM from start → {lat,lon,legIdx,legF
   }
 }
 
+/* ---- guards for user-created routes (no ATC script / unknown airports) ---- */
+function atcFor(id) { return DATA.atc[id] || { ground: [], enroute: [], arrival: [] }; }
+function apOf(id, rt) {
+  if (DATA.airports[id]) return DATA.airports[id];
+  const w = rt ? (rt.wpts.find(x => x.id === id) || rt.wpts[0]) : null;
+  return { icao: id, name: id, lat: w?.lat ?? 0, lon: w?.lon ?? 0, elev: w?.alt ?? 0, rwy: "--/--", rwyLen: "", freqs: [], circuit: "—", notes: "" };
+}
+
 /* ================= state ================= */
 const wind = { dir: 180, spd: 10 };
 const store = {
@@ -64,7 +79,7 @@ const store = {
 };
 
 /* ================= map ================= */
-let map, layerRoutes, layerUser, layerAC, layerDivert;
+let map, layerRoutes, layerUser, layerAC, layerDivert, layerNotes;
 let autoFit = true;
 function fitActive() {
   if (!map) return;
@@ -84,6 +99,7 @@ function initMap() {
     { maxZoom: 18, opacity: 0.9 }).addTo(map);
   layerRoutes = L.layerGroup().addTo(map);
   layerUser = L.layerGroup().addTo(map);
+  layerNotes = L.layerGroup().addTo(map);
   layerDivert = L.layerGroup().addTo(map);
   layerAC = L.layerGroup().addTo(map);
   map.on("click", onMapClick);
@@ -92,8 +108,53 @@ function initMap() {
   map.on("mousedown", () => { autoFit = false; });
   map.getContainer().addEventListener("wheel", () => { autoFit = false; }, { passive: true });
   new ResizeObserver(() => { map.invalidateSize(); if (autoFit) fitActive(); }).observe(document.getElementById("map"));
-  drawRoutes(); drawUserWpts();
+  drawRoutes(); drawUserWpts(); drawNotes();
 }
+
+/* ---- map notes (NOTE mode): add / edit / drag / resize / recolor / delete ---- */
+let notes = store.get("mapNotes", []);
+const NOTE_COLORS = { amber: "#ffb300", cyan: "#00e5ff", magenta: "#ff2ec4", green: "#00ff66", red: "#ff3b30", white: "#ffffff" };
+function drawNotes() {
+  layerNotes.clearLayers();
+  notes.forEach((n, i) => {
+    const color = NOTE_COLORS[n.color] || NOTE_COLORS.amber;
+    const size = n.size === "L" ? 15 : n.size === "S" ? 10 : 12;
+    const m = L.marker([n.lat, n.lon], {
+      draggable: true, zIndexOffset: 500,
+      icon: L.divIcon({
+        className: "", iconSize: null, iconAnchor: [6, 6],
+        html: `<div class="map-note" style="--nc:${color};font-size:${size}px">${(n.text || "").replace(/</g, "&lt;").replace(/\n/g, "<br>")}</div>`
+      })
+    }).addTo(layerNotes);
+    m.on("dragend", e => { const p = e.target.getLatLng(); notes[i].lat = p.lat; notes[i].lon = p.lng; saveNotes(); });
+    m.bindPopup(() => noteEditor(i), { minWidth: 240 });
+  });
+}
+function noteEditor(i) {
+  const n = notes[i];
+  const colorOpts = Object.keys(NOTE_COLORS).map(c => `<option value="${c}" ${n.color === c ? "selected" : ""}>${c}</option>`).join("");
+  const div = document.createElement("div");
+  div.className = "pop";
+  div.innerHTML = `<div class="pop-title">MAP NOTE</div>
+    <textarea id="ne-text" rows="3" style="width:100%">${(n.text || "").replace(/</g, "&lt;")}</textarea>
+    <div class="pop-actions" style="margin:6px 0">
+      <select id="ne-size">${["S", "M", "L"].map(s => `<option ${n.size === s ? "selected" : ""}>${s}</option>`).join("")}</select>
+      <select id="ne-color">${colorOpts}</select>
+    </div>
+    <div class="pop-actions">
+      <button id="ne-save">✔ save</button>
+      <button id="ne-del">✕ delete</button>
+    </div>`;
+  div.querySelector("#ne-save").onclick = () => {
+    n.text = div.querySelector("#ne-text").value;
+    n.size = div.querySelector("#ne-size").value;
+    n.color = div.querySelector("#ne-color").value;
+    saveNotes(); map.closePopup();
+  };
+  div.querySelector("#ne-del").onclick = () => { notes.splice(i, 1); saveNotes(); map.closePopup(); };
+  return div;
+}
+function saveNotes() { store.set("mapNotes", notes); drawNotes(); }
 
 function wptIcon(color, report) {
   return L.divIcon({
@@ -166,7 +227,12 @@ window.editUserWpt = i => {
 window.delUserWpt = i => { userWpts.splice(i, 1); saveUser(); };
 
 function onMapClick(e) {
-  if (mode === "draw") {
+  if (mode === "note") {
+    const text = prompt("Note text (what do you want to remember at this spot?):", "");
+    if (!text) return;
+    notes.push({ lat: e.latlng.lat, lon: e.latlng.lng, text, size: "M", color: "amber" });
+    saveNotes();
+  } else if (mode === "draw") {
     const name = prompt("Waypoint name (blank = auto):", "") ?? "";
     if (name === null) return;
     const comment = prompt("Comment (what will you see / do here?):", "") ?? "";
@@ -259,14 +325,14 @@ function atcCard(ev, idx) {
   </div>`;
 }
 function buildAtcTab() {
-  const s = DATA.atc[activeRoute.id];
+  const s = atcFor(activeRoute.id);
   const el = document.getElementById("atc-list");
-  el.innerHTML = `<h3>Ground — ${DATA.airports[activeRoute.dep].icao}</h3>` + s.ground.map(atcCard).join("") +
+  el.innerHTML = `<h3>Ground — ${apOf(activeRoute.dep, activeRoute).icao}</h3>` + s.ground.map(atcCard).join("") +
     `<h3>En-route</h3>` + s.enroute.map(atcCard).join("") +
-    `<h3>Arrival — ${DATA.airports[activeRoute.dest].icao}</h3>` + s.arrival.map(atcCard).join("") +
+    `<h3>Arrival — ${apOf(activeRoute.dest, activeRoute).icao}</h3>` + s.arrival.map(atcCard).join("") +
     `<h3>Frequencies</h3><div class="freq-grid">` +
     [activeRoute.dep, activeRoute.dest].map(k => {
-      const ap = DATA.airports[k];
+      const ap = apOf(k, activeRoute);
       return `<div class="freq-card"><b>${ap.icao}</b> ${ap.name}<br>` + ap.freqs.map(f => `${f[0]} <b>${f[1]}</b>`).join("<br>") + `</div>`;
     }).join("") + `<div class="freq-card"><b>En-route</b><br>Bangkok Information <b>122.7</b><br>Emergency <b>121.5</b><br>Squawk VFR <b>1200</b></div></div>`;
 }
@@ -291,7 +357,7 @@ const sim = {
 function buildEvents() {
   const D = routeTotal(activeRoute);
   sim.total = D;
-  const scr = DATA.atc[activeRoute.id];
+  const scr = atcFor(activeRoute.id);
   const evs = [];
   scr.enroute.forEach(e => {
     let kind = "atc", act = null;
@@ -307,7 +373,7 @@ function buildEvents() {
   sim.events = evs; sim.nextEv = 0;
 }
 function altProfile(s) {
-  const dep = DATA.airports[activeRoute.dep].elev, dst = DATA.airports[activeRoute.dest].elev;
+  const dep = apOf(activeRoute.dep, activeRoute).elev, dst = apOf(activeRoute.dest, activeRoute).elev;
   const climbGrad = DATA.aircraft.climbFpm / (DATA.aircraft.climbTas / 60);   // ft per NM
   const descGrad = 300;
   return Math.min(activeRoute.cruiseAlt, dep + s * climbGrad, dst + Math.max(0, sim.total - s) * descGrad);
@@ -333,7 +399,8 @@ function updateSimUI() {
   const alt = altProfile(sim.s), prevAlt = altProfile(Math.max(0, sim.s - 0.2));
   const vs = (alt - prevAlt) / (0.2 / p.leg.gs * 60);
   const climbing = vs > 100, descending = vs < -100;
-  const ias = sim.s < 0.3 ? Math.min(75, p.leg.gs) : climbing ? 75 : descending ? (sim.total - sim.s < 3 ? 76 + (sim.total - sim.s) / 3 * 34 : 115) : 110;
+  const crzIas = Math.max(70, (p.leg.tas || DATA.aircraft.tas) - 10);
+  const ias = sim.s < 0.3 ? Math.min(75, p.leg.gs) : climbing ? 75 : descending ? (sim.total - sim.s < 3 ? 76 + (sim.total - sim.s) / 3 * 34 : crzIas + 5) : crzIas;
   const wobble = Math.sin(sim.s * 2.2) * 0.12;
   if (!acMarker) {
     acMarker = L.marker([p.lat, p.lon], {
@@ -367,12 +434,12 @@ function startSim() {
   nextGroundEvent();
 }
 function nextGroundEvent() {
-  const g = DATA.atc[activeRoute.id].ground;
+  const g = atcFor(activeRoute.id).ground;
   if (sim.groundIdx < g.length) {
     showEvent({ kind: "atc", ev: g[sim.groundIdx++], ground: true });
   } else {
     sim.phase = "air";
-    logLine(`✈ Airborne ${fmtClock(sim.clockMin)}L — RWY ${DATA.airports[activeRoute.dep].rwy.split("/")[0]}`);
+    logLine(`✈ Airborne ${fmtClock(sim.clockMin)}L — RWY ${apOf(activeRoute.dep, activeRoute).rwy.split("/")[0]}`);
     resumeSim();
   }
 }
@@ -391,7 +458,7 @@ function pauseSim() {
 function finishSim() {
   pauseSim();
   updateSimUI();
-  logLine(`■ LANDED ${DATA.airports[activeRoute.dest].icao} at ${fmtClock(sim.clockMin)}L. Block time so far: ${fmtMin(sim.clockMin - 9 * 60)} (durMin). Fill the last nav-log rows + shutdown checklist.`);
+  logLine(`■ LANDED ${apOf(activeRoute.dest, activeRoute).icao} at ${fmtClock(sim.clockMin)}L. Block time so far: ${fmtMin(sim.clockMin - 9 * 60)} (durMin). Fill the last nav-log rows + shutdown checklist.`);
   document.getElementById("btn-startpause").textContent = "▶ START";
   sim.s = 0; sim.phase = "ground"; sim.groundIdx = 0; sim.nextEv = 0;
   alert("Dry run complete ✔  Check the flight log and finish your NAV LOG entries (ATO / fuel / remarks).");
@@ -458,9 +525,9 @@ function buildPerf() {
   const sel = document.getElementById("pwr-sel");
   sel.innerHTML = DATA.perf.cruise.map((c, i) => `<option value="${i}">${c[0]} — ${c[3]} KTAS / ${c[4]} GPH</option>`).join("");
   sel.value = "1";
-  sel.addEventListener("change", () => { fuelPlan(); buildNavlog(); });
+  sel.onchange = () => { fuelPlan(); buildNavlog(); };
   fuelPlan(); wbCalc();
-  document.querySelectorAll("#wb-form input").forEach(i => i.addEventListener("input", wbCalc));
+  document.querySelectorAll("#wb-form input").forEach(i => { i.oninput = wbCalc; });
 }
 function fuelPlan() {
   const d = routeTotal(activeRoute);
@@ -546,9 +613,60 @@ function buildLessons() {
   }));
 }
 
+/* ================= PDF export (print-to-PDF brief) ================= */
+function exportPDF() {
+  const legs = routeLegs(activeRoute);
+  const rec = store.get(navlogKey(), {});
+  const gph = getCruiseGph();
+  let eto = 9 * 60;
+  const navRows = legs.map((l, i) => {
+    eto += l.ete; const r = rec[i] || {};
+    return `<tr><td>${l.from.id} → ${l.to.id}${l.to.report ? " ◆" : ""}</td><td>${l.to.alt.toLocaleString()}</td>
+      <td>${pad3(l.mc)}</td><td><b>${pad3(l.hdg)}</b></td><td>${l.dist.toFixed(1)}</td><td>${Math.round(l.gs)}</td>
+      <td>${fmtMin(l.ete)}</td><td>${fmtClock(eto)}</td><td>${r.ato || ""}</td><td>${(l.ete / 60 * gph).toFixed(1)}</td><td>${r.fuel || ""}</td><td>${r.rmk || ""}</td></tr>`;
+  }).join("");
+  const s = atcFor(activeRoute.id);
+  const atcRows = [...s.ground, ...s.enroute, ...s.arrival].map(ev =>
+    `<div class="b-atc"><b>${ev.station}${ev.frac !== undefined ? ` (${Math.round(ev.frac * 100)}%)` : ""}</b><br>ATC: ${ev.atc}<br><i>YOU: ${ev.pilot}</i></div>`).join("");
+  const wptRows = activeRoute.wpts.map(w =>
+    `<tr><td><b>${w.id}</b> ${w.name}${w.report ? " ◆RP" : ""}</td><td>${w.alt.toLocaleString()} ft${w.spd ? " · " + w.spd + " kt" : ""}</td><td>${w.comment || ""}</td></tr>`).join("");
+  const noteRows = notes.length ? `<h2>Map notes</h2><ul>` + notes.map(n => `<li>${(n.text || "").replace(/</g, "&lt;")} <i>(${n.lat.toFixed(3)}, ${n.lon.toFixed(3)})</i></li>`).join("") + `</ul>` : "";
+  const freqs = [activeRoute.dep, activeRoute.dest].map(k => { const ap = apOf(k, activeRoute); return `<b>${ap.icao}</b> ${ap.freqs.map(f => `${f[0]} ${f[1]}`).join(" · ") || "—"}`; }).join("<br>");
+  document.getElementById("brief").innerHTML = `
+    <h1>NU'S DRY RUN — FLIGHT BRIEF</h1>
+    <p class="b-meta">${activeRoute.title} · ${DATA.aircraft.type} ${DATA.aircraft.reg} · ${DATA.aircraft.callsign} ·
+      W/V ${pad3(wind.dir)}/${wind.spd} · VAR ${VAR}°W · printed ${new Date().toLocaleString()} · TRAINING AID ONLY</p>
+    <h2>Nav log</h2>
+    <table><tr><th>Leg</th><th>ALT</th><th>MC°</th><th>HDG°</th><th>DIST</th><th>GS</th><th>ETE</th><th>ETO</th><th>ATO</th><th>Fuel pl</th><th>Fuel act</th><th>Remarks</th></tr>${navRows}</table>
+    <p>Total ${routeTotal(activeRoute).toFixed(1)} NM · ${fmtMin(legs.reduce((x, l) => x + l.ete, 0))} ·
+      trip fuel ${(legs.reduce((x, l) => x + l.ete, 0) / 60 * gph).toFixed(1)} USG + taxi ${DATA.aircraft.taxiGal} + reserve ${(gph * 0.75).toFixed(1)} USG</p>
+    <h2>Waypoint briefing (◆ = compulsory report)</h2>
+    <table><tr><th>Waypoint</th><th>Plan</th><th>Notes</th></tr>${wptRows}</table>
+    <h2>Frequencies</h2><p>${freqs}<br>Bangkok Information 122.7 · Emergency 121.5 · VFR squawk 1200</p>
+    <h2>Radio script</h2>${atcRows}
+    ${noteRows}`;
+  document.body.classList.add("printing-brief");
+  const done = () => { document.body.classList.remove("printing-brief"); window.removeEventListener("afterprint", done); };
+  window.addEventListener("afterprint", done);
+  window.print();
+  setTimeout(done, 2000);
+}
+
 /* ================= route select / tabs / boot ================= */
+function buildRouteSel(selId) {
+  const rs = document.getElementById("route-sel");
+  rs.innerHTML = DATA.routes.map(r => `<option value="${r.id}">${r.title}</option>`).join("");
+  rs.value = selId || DATA.routes[0].id;
+}
+function refreshAll() {
+  if (!DATA.routes.find(r => r.id === activeRoute.id)) activeRoute = DATA.routes[0];
+  buildRouteSel(activeRoute.id);
+  buildPerf();
+  selectRoute(activeRoute.id);
+  buildLessons();
+}
 function selectRoute(id) {
-  activeRoute = DATA.routes.find(r => r.id === id);
+  activeRoute = DATA.routes.find(r => r.id === id) || DATA.routes[0];
   document.getElementById("route-sel").value = id;
   pauseSim(); sim.s = 0; sim.phase = "ground"; sim.groundIdx = 0; sim.nextEv = 0;
   if (acMarker) { layerAC.clearLayers(); acMarker = null; }
@@ -580,10 +698,6 @@ window.addEventListener("DOMContentLoaded", () => {
   document.getElementById("btn-clear-user").addEventListener("click", () => {
     if (confirm("Delete ALL your drawn waypoints?")) { userWpts = []; saveUser(); }
   });
-  document.getElementById("btn-export").addEventListener("click", () => {
-    const blob = new Blob([JSON.stringify({ userWpts, navlogs: Object.fromEntries(DATA.routes.map(r => ["navlog:" + r.id, store.get("navlog:" + r.id, {})])) }, null, 2)], { type: "application/json" });
-    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "ap127-dryrun-export.json"; a.click();
-  });
   document.getElementById("btn-startpause").addEventListener("click", () => {
     if (sim.running) pauseSim();
     else if (sim.s === 0 && sim.phase === "ground" && sim.groundIdx === 0) startSim();
@@ -596,6 +710,9 @@ window.addEventListener("DOMContentLoaded", () => {
     buildNavlog(); fuelPlan(); drawRoutes(); buildG1000Fpl();
   }));
   document.getElementById("btn-print").addEventListener("click", () => window.print());
+  document.getElementById("btn-pdf").addEventListener("click", exportPDF);
+  document.getElementById("btn-pdf2").addEventListener("click", exportPDF);
+  if (typeof initEditTab === "function") initEditTab();
   buildNavlog(); buildAtcTab(); buildPerf(); buildLessons();
   selectRoute(DATA.routes[0].id);
 });

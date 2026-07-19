@@ -37,6 +37,15 @@ DATA.airports = {
   }
 };
 
+/* ---------- VOR / navaid reference (for FPL input, e.g. HHN/030/12) ---------- */
+DATA.vors = {
+  HHN: { name: "Hua Hin VOR/DME 113.5", lat: 12.6320, lon: 99.9560 },
+  BKK: { name: "Bangkok VOR/DME 110.6", lat: 13.6900, lon: 100.7660 },
+  RBR: { name: "Ratchaburi (trg ref)", lat: 13.5360, lon: 99.8170 },
+  KPS: { name: "Kamphaeng Saen (trg ref)", lat: 14.1020, lon: 99.9170 },
+  BPR: { name: "Bang Phra (trg ref)", lat: 13.2323, lon: 100.9560 }
+};
+
 /* ---------- Aircraft & callsign ---------- */
 DATA.aircraft = {
   type: "DA40 CS", reg: "HS-CTC", callsign: "CATC 274",
@@ -321,3 +330,24 @@ DATA.perf = {
     ["Rate of climb (SL, MTOW)", "~1,070 ft/min"], ["Service ceiling", "16,400 ft"]
   ]
 };
+
+/* ============================================================
+   Config persistence — EVERYTHING above is only the factory
+   default. If the user has saved a config, it replaces DATA
+   in place. saveDATA()/resetDATA() are used by the EDIT tab.
+   ============================================================ */
+const DEFAULT_DATA = JSON.parse(JSON.stringify(DATA));
+const CONFIG_KEY = "nudryrun:config";
+(function loadConfig() {
+  try {
+    const s = JSON.parse(localStorage.getItem(CONFIG_KEY));
+    if (s && s.routes && s.aircraft) {
+      Object.keys(DATA).forEach(k => delete DATA[k]);
+      Object.assign(DATA, s);
+      // pick up new top-level blocks added in later app versions
+      Object.keys(DEFAULT_DATA).forEach(k => { if (!(k in DATA)) DATA[k] = JSON.parse(JSON.stringify(DEFAULT_DATA[k])); });
+    }
+  } catch (e) { console.warn("config load failed, using defaults", e); }
+})();
+function saveDATA() { localStorage.setItem(CONFIG_KEY, JSON.stringify(DATA)); }
+function resetDATA() { localStorage.removeItem(CONFIG_KEY); location.reload(); }

@@ -12,8 +12,8 @@ out of Hua Hin (VTPH) in the DA40 CS, built for the AP127 ecosystem (CATC Hua Hi
 ## Routes
 | # | Route | Cruise |
 |---|-------|--------|
-| XC-1 | VTPH → VTBP (Bang Phra) via Cha-am · Phetchaburi · Mae Klong · Samut Sakhon · Chao Phraya mouth · Si Racha | 4,500 ft |
-| XC-2 | VTBP → VTPH (return) | 5,500 ft |
+| XC-1 | VTPH → VTBP Prachuap Khiri Khan — inland via X Point, P Point (Pran Buri) | 2,700→2,900 ft |
+| XC-2 | VTBP → VTPH — coastal via Sattakut, Khao Tao, SE Point | 1,800→1,400 ft |
 | XC-3 | VTPH → VTBK (Kamphaeng Saen) via Cha-am · Phetchaburi · Ratchaburi · Nakhon Pathom | 4,500 ft |
 | XC-4 | VTBK → VTPH (return) | 5,500 ft |
 

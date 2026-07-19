@@ -8,25 +8,27 @@
    ============================================================ */
 
 const DATA = {};
+DATA.version = 2;   // bump when factory routes/airports change → triggers migration of saved configs
 
-/* ---------- Airports ---------- */
+/* ---------- Airports (freqs per Nu's chart drawing) ---------- */
 DATA.airports = {
   VTPH: {
     icao: "VTPH", name: "Hua Hin (Home base)", lat: 12.6362, lon: 99.9515,
-    elev: 62, rwy: "16/34", rwyLen: "2100 m asphalt",
+    elev: 62, rwy: "16/34", rwyLen: "RWY 16: 6890×115 ft (elev 62') · RWY 34: 6398×115 ft (17')",
     freqs: [
-      ["ATIS", "126.4"], ["Hua Hin Ground", "121.9"],
-      ["Hua Hin Tower", "118.1"], ["Hua Hin Approach", "119.7"]
+      ["ATIS", "126.8"], ["Hua Hin Ground", "121.9"],
+      ["Hua Hin Tower", "122.7"], ["Hua Hin Approach", "126.2"],
+      ["NDB", "213"], ["VOR (HHN)", "113.3"]
     ],
     circuit: "LH RWY 16 / RH RWY 34, 1000 ft AAL",
     notes: "CATC home base. Watch airline traffic; coastal winds pick up after 11:00 local."
   },
   VTBP: {
-    icao: "VTBP", name: "Bang Phra (Chonburi)", lat: 13.2323, lon: 100.9560,
-    elev: 51, rwy: "06/24", rwyLen: "1080 m asphalt",
-    freqs: [["Bang Phra Radio (AFIS)", "122.5"]],
-    circuit: "LH RWY 06 / RH RWY 24, 1000 ft AAL",
-    notes: "Uncontrolled — AFIS. GA & gliding activity. Hills NW of field; join from the coast side when able."
+    icao: "VTBP", name: "Prachuap Khiri Khan (Ao Manao)", lat: 11.7885, lon: 99.8046,
+    elev: 17, rwy: "18/36 · 08/26", rwyLen: "RWY 18/36: 3445×130 ft (17') · RWY 08/26: 6560×130 ft (17')",
+    freqs: [["Prachuap Tower", "135.9"], ["NDB", "320"], ["DME", "113.7"]],
+    circuit: "As directed by TWR — military field (RTAF Wing 5)",
+    notes: "Military airfield at Ao Manao bay. Khao Chong Krachok monkey-mountain N of town, Khao Lom Muak S of the field. Full crisp readbacks; comply with TWR."
   },
   VTBK: {
     icao: "VTBK", name: "Kamphaeng Saen (Nakhon Pathom)", lat: 14.1020, lon: 99.9170,
@@ -39,11 +41,11 @@ DATA.airports = {
 
 /* ---------- VOR / navaid reference (for FPL input, e.g. HHN/030/12) ---------- */
 DATA.vors = {
-  HHN: { name: "Hua Hin VOR/DME 113.5", lat: 12.6320, lon: 99.9560 },
+  HHN: { name: "Hua Hin VOR 113.3 / NDB 213", lat: 12.6362, lon: 99.9515 },
+  PKN: { name: "Prachuap DME 113.7 / NDB 320", lat: 11.7885, lon: 99.8046 },
   BKK: { name: "Bangkok VOR/DME 110.6", lat: 13.6900, lon: 100.7660 },
   RBR: { name: "Ratchaburi (trg ref)", lat: 13.5360, lon: 99.8170 },
-  KPS: { name: "Kamphaeng Saen (trg ref)", lat: 14.1020, lon: 99.9170 },
-  BPR: { name: "Bang Phra (trg ref)", lat: 13.2323, lon: 100.9560 }
+  KPS: { name: "Kamphaeng Saen (trg ref)", lat: 14.1020, lon: 99.9170 }
 };
 
 /* ---------- Aircraft & callsign ---------- */
@@ -60,31 +62,24 @@ DATA.aircraft = {
    comment (briefing note shown on map popup).                                        */
 DATA.routes = [
   {
-    id: "PH-BP", title: "XC-1  VTPH → VTBP (Bang Phra)",
-    cruiseAlt: 4500, dep: "VTPH", dest: "VTBP",
+    id: "PH-BP", title: "XC-1  VTPH → VTBP Prachuap (inland: X PT · P PT)",
+    cruiseAlt: 2900, dep: "VTPH", dest: "VTBP",
     wpts: [
-      { id: "VTPH",  name: "Hua Hin",        lat: 12.6362, lon: 99.9515, alt: 62,   report: true,  comment: "Depart RWY 16, climbing right turn northbound along the coast. Contact HH Approach passing 1000 ft." },
-      { id: "CHAAM", name: "Cha-am Beach",   lat: 12.8000, lon: 99.9670, alt: 3000, report: true,  comment: "Compulsory report. Long straight beach + pier — easy visual fix. Continue climb to 4500." },
-      { id: "PHBRI", name: "Phetchaburi",    lat: 13.1119, lon: 99.9410, alt: 4500, report: true,  comment: "Town with river through centre, Khao Wang palace hill W of town. Level 4500. FREDA check." },
-      { id: "MEKLO", name: "Mae Klong River",lat: 13.4100, lon: 99.9990, alt: 4500, report: false, comment: "River mouth + salt pans. Stay W of BKK TMA boundary. Update heading for drift." },
-      { id: "SAKHN", name: "Samut Sakhon",   lat: 13.5470, lon: 100.2740, alt: 4500, report: true, comment: "Compulsory report. Tha Chin river mouth, big port. Squawk & altitude check — TMA close to the N." },
-      { id: "PAKNM", name: "Chao Phraya Mouth", lat: 13.5400, lon: 100.5830, alt: 3500, report: true, comment: "Cross Chao Phraya mouth. Descend 3500 to stay below inbound BKK traffic. Watch ships & birds." },
-      { id: "SRRCH", name: "Si Racha Coast", lat: 13.1670, lon: 100.9300, alt: 2500, report: false, comment: "Koh Sichang island abeam W — confirm position. Begin descent, get Bang Phra AFIS." },
-      { id: "VTBP",  name: "Bang Phra",      lat: 13.2323, lon: 100.9560, alt: 51,  report: true,  comment: "Join LH downwind RWY 06 from the coast. Reservoir SE of field is the visual key." }
+      { id: "VTPH", name: "Hua Hin",             lat: 12.6362, lon: 99.9515, alt: 62,   report: true,  comment: "Depart RWY 16. Right turn southwest-bound, track 238° to X Point. Per plan: 2700 ft." },
+      { id: "XPT",  name: "X Point",             lat: 12.5873, lon: 99.8738, alt: 2700, report: true,  comment: "X POINT — 6 NM out on track 238°. Road/rail west of the Hua Hin hills. Turn left onto 171°, level 2700." },
+      { id: "PPT",  name: "P Point (Pran Buri)", lat: 12.3935, lon: 99.8984, alt: 2700, report: true,  comment: "P POINT — Pran Buri: Highway 4 junction; disused Pran Buri airstrip (NOT USABLE) NW of town, Khai Thanarat S. Report, then turn onto 190° for the 36 NM leg, climb 2900." },
+      { id: "VTBP", name: "Prachuap Khiri Khan", lat: 11.7885, lon: 99.8046, alt: 17,  report: true,  comment: "Prachuap (Ao Manao), RTAF Wing 5. Khao Chong Krachok N of town, Khao Lom Muak S of field. TWR 135.9 — expect RWY 18/36 or 08/26 per TWR." }
     ]
   },
   {
-    id: "BP-PH", title: "XC-2  VTBP → VTPH (return)",
-    cruiseAlt: 5500, dep: "VTBP", dest: "VTPH",
+    id: "BP-PH", title: "XC-2  VTBP → VTPH (coastal: Sattakut · Khao Tao · SE PT)",
+    cruiseAlt: 1800, dep: "VTBP", dest: "VTPH",
     wpts: [
-      { id: "VTBP",  name: "Bang Phra",      lat: 13.2323, lon: 100.9560, alt: 51,  report: true,  comment: "Depart RWY 24, climb over the coast, right turn NW. Self-announce on AFIS until clear." },
-      { id: "SRRCH", name: "Si Racha Coast", lat: 13.1670, lon: 100.9300, alt: 2500, report: false, comment: "Coast out abeam Koh Sichang, continue climb 5500 (westbound: odd+500)." },
-      { id: "PAKNM", name: "Chao Phraya Mouth", lat: 13.5400, lon: 100.5830, alt: 5500, report: true, comment: "Compulsory report crossing the shipping lane. Ground speed check — compute revised ETA." },
-      { id: "SAKHN", name: "Samut Sakhon",   lat: 13.5470, lon: 100.2740, alt: 5500, report: true, comment: "Compulsory report. FREDA. Fuel log entry — should be ≥ 2/3 tanks here." },
-      { id: "MEKLO", name: "Mae Klong River",lat: 13.4100, lon: 99.9990, alt: 5500, report: false, comment: "Track down the coast; salt pans glare — sunglasses. Diversion exercise trigger point." },
-      { id: "PHBRI", name: "Phetchaburi",    lat: 13.1119, lon: 99.9410, alt: 4500, report: true,  comment: "Begin descent. Get Hua Hin ATIS, then call HH Approach with inbound estimate." },
-      { id: "CHAAM", name: "Cha-am Beach",   lat: 12.8000, lon: 99.9670, alt: 2500, report: true,  comment: "Compulsory report. Expect straight-in or LH downwind RWY 16 depending on traffic." },
-      { id: "VTPH",  name: "Hua Hin",        lat: 12.6362, lon: 99.9515, alt: 62,  report: true,  comment: "Landing RWY 16. After landing: flaps up, lights, transponder STBY, taxi to CATC apron." }
+      { id: "VTBP", name: "Prachuap Khiri Khan", lat: 11.7885, lon: 99.8046, alt: 17,  report: true,  comment: "Depart per TWR 135.9, right turn coastal northbound, track 029°, climb 1800." },
+      { id: "SATKT", name: "Ban Sadakut (Khung Tanot)", lat: 12.2201, lon: 100.0275, alt: 1800, report: true, comment: "SATTAKUT — coast at Khao Sam Roi Yot, Ko Sadakut islet offshore, Khao Sam Roi Yot peaks (1,989') inland — stay coastal. Turn 358°, descend 1400." },
+      { id: "KHTAO", name: "Ban Khao Tao",       lat: 12.4657, lon: 100.0041, alt: 1400, report: true, comment: "KHAO TAO — headland village + reservoir S of Khao Tao hill. 1400 ft. Turn 012° up the bay." },
+      { id: "SEPT", name: "SE Point (Ao Hua Hin)", lat: 12.6089, lon: 100.0372, alt: 1400, report: true, comment: "SE POINT — offshore over Ao Hua Hin, ~6 NM SE of the field (abeam Klai Kangwon palace). Per plan: climb 2700 ft on the 288° rejoin leg toward the field." },
+      { id: "VTPH", name: "Hua Hin",             lat: 12.6362, lon: 99.9515, alt: 62,  report: true,  comment: "Rejoin from the bay on 288°. Landing RWY 16 (or 34 per TWR). After landing: flaps up, transponder STBY, taxi to CATC apron. Log block time (durMin)." }
     ]
   },
   {
@@ -119,52 +114,51 @@ DATA.routes = [
 DATA.atc = {
   "PH-BP": {
     ground: [
-      { station: "ATIS 126.4", atc: "Hua Hin International Airport information ALPHA, time 0200. Runway in use 16. Wind 140 degrees 8 knots. Visibility 9 kilometres. Few 2000. Temperature 31, dew point 24. QNH 1011. Advise on initial contact you have information ALPHA.", pilot: "(Copy ATIS — no transmission. Set QNH 1011.)", tip: "Copy onto the nav log header before first call." },
-      { station: "Hua Hin Ground 121.9", atc: "CATC 274, Hua Hin Ground, start-up approved, QNH 1011, runway 16, taxi via Alpha, hold short runway 16.", pilot: "Start-up approved, QNH 1011, taxi Alpha hold short runway 16, CATC 274.", tip: "Your initial call: 'Hua Hin Ground, CATC 274, DA40 at CATC apron, information Alpha, VFR to Bang Phra via Cha-am, request start and taxi.'" },
-      { station: "Hua Hin Tower 118.1", atc: "CATC 274, Hua Hin Tower, wind 140 degrees 7 knots, runway 16, cleared for take-off. After departure right turn northbound approved, report Cha-am.", pilot: "Cleared for take-off runway 16, right turn northbound, will report Cha-am, CATC 274.", tip: "Full readback of clearance + runway. Lights, camera, action before rolling." }
+      { station: "ATIS 126.8", atc: "Hua Hin International Airport information ALPHA, time 0200. Runway in use 16. Wind 150 degrees 8 knots. Visibility 9 kilometres. Few 2000. Temperature 31, dew point 24. QNH 1011. Advise on initial contact you have information ALPHA.", pilot: "(Copy ATIS — no transmission. Set QNH 1011.)", tip: "Copy onto the nav log header before first call." },
+      { station: "Hua Hin Ground 121.9", atc: "CATC 274, Hua Hin Ground, start-up approved, QNH 1011, runway 16, taxi via Alpha, hold short runway 16.", pilot: "Start-up approved, QNH 1011, taxi Alpha hold short runway 16, CATC 274.", tip: "Initial call: 'Hua Hin Ground, CATC 274, DA40 at CATC apron, information Alpha, VFR to Prachuap via X Point, P Point, 2700 feet, request start and taxi.'" },
+      { station: "Hua Hin Tower 122.7", atc: "CATC 274, Hua Hin Tower, wind 150 degrees 7 knots, runway 16, cleared for take-off. Right turn southwest-bound approved, report X Point.", pilot: "Cleared for take-off runway 16, right turn southwest-bound, will report X Point, CATC 274.", tip: "Full readback of clearance + runway. Lights, camera, action before rolling." }
     ],
     enroute: [
-      { frac: 0.04, station: "Hua Hin Tower 118.1", atc: "CATC 274, contact Hua Hin Approach 119.7.", pilot: "Contact Approach 119.7, CATC 274.", tip: "Passing ~1000 ft in the climb." },
-      { frac: 0.10, station: "Hua Hin Approach 119.7", atc: "CATC 274, Hua Hin Approach, radar contact. Report Cha-am.", pilot: "Wilco, CATC 274.", tip: "Initial call: 'Hua Hin Approach, CATC 274, DA40, out of 2000 climbing 4500, VFR Bang Phra, estimating Cha-am at 15.'" },
-      { frac: 0.14, station: "Position report", atc: "(You are overhead Cha-am — make a position report.)", pilot: "Hua Hin Approach, CATC 274, Cha-am at 15, 4500 feet, estimating Phetchaburi at 27, Bang Phra next.", tip: "Format: POSITION — TIME — LEVEL — NEXT + ETA — THEREAFTER." },
-      { frac: 0.30, station: "Hua Hin Approach 119.7", atc: "CATC 274, leaving my area, monitor Bangkok Information 122.7, squawk 1200. Good day.", pilot: "Monitor Bangkok Information 122.7, squawk 1200, CATC 274, good day.", tip: "Set 1200 before switching. Keep listening watch." },
-      { frac: 0.45, station: "Position report", atc: "(Overhead Samut Sakhon — compulsory report on Bangkok Information.)", pilot: "Bangkok Information, CATC 274, DA40, Samut Sakhon at 42, 4500 feet, VFR Hua Hin to Bang Phra, estimating Chao Phraya mouth at 55.", tip: "Traffic information service only — you remain responsible for separation." },
-      { frac: 0.60, station: "Bangkok Information 122.7", atc: "CATC 274, traffic, Cessna Caravan, opposite direction along the coast, 3500 feet, report in sight.", pilot: "Looking out, CATC 274. ... Traffic in sight, CATC 274.", tip: "Scan technique: sector scan, then report factually." },
-      { frac: 0.85, station: "Bang Phra Radio 122.5", atc: "CATC 274, Bang Phra Radio, runway 06 in use, QNH 1010, circuit left hand, one glider operating overhead the reservoir, report joining downwind.", pilot: "Runway 06, QNH 1010, will join left downwind, looking out for the glider, CATC 274.", tip: "Initial call 10 NM out: 'Bang Phra Radio, CATC 274, DA40, 10 miles southwest, 2500 feet, inbound for landing.'" }
+      { frac: 0.05, station: "Hua Hin Tower 122.7", atc: "CATC 274, contact Hua Hin Approach 126.2.", pilot: "Contact Approach 126.2, CATC 274.", tip: "Passing ~1000 ft in the climbing right turn onto 238°." },
+      { frac: 0.10, station: "Position report", atc: "(Overhead X Point, 6 NM, level 2700 — make your report.)", pilot: "Hua Hin Approach, CATC 274, X Point at 07, 2700 feet, estimating P Point at 13, Prachuap next.", tip: "Format: POSITION — TIME — LEVEL — NEXT + ETA — THEREAFTER. Turn left onto 171°." },
+      { frac: 0.30, station: "Position report", atc: "(Overhead P Point — Pran Buri. Compulsory report.)", pilot: "Hua Hin Approach, CATC 274, P Point at 13, 2700 feet, climbing 2900, estimating Prachuap at 32.", tip: "Turn onto 190°, climb 2900 for the 36 NM leg. FREDA right after the call." },
+      { frac: 0.45, station: "Hua Hin Approach 126.2", atc: "CATC 274, leaving my area, contact Prachuap Tower 135.9 when 15 miles out. Squawk 1200. Good day.", pilot: "Contact Prachuap Tower 135.9 at 15 miles, squawk 1200, CATC 274, good day.", tip: "Keep listening watch. Overwater/coastal gap — hold heading 190°, check drift each 5 NM tick." },
+      { frac: 0.62, station: "IN-FLIGHT EXERCISE", atc: "(Instructor: simulated engine roughness on the long leg — run the trouble check, pick a field, then resume.)", pilot: "(Drill: fuel pump ON, contents, mixture/power, alternate air, engine gauges; best glide 88; field or beach within reach.)", tip: "Talk it through out loud exactly like the real flight." },
+      { frac: 0.75, station: "Prachuap Tower 135.9", atc: "CATC 274, Prachuap Tower, runway 36 in use, QNH 1010, report 10 miles north, military traffic in the circuit.", pilot: "Runway 36, QNH 1010, will report 10 miles north, CATC 274.", tip: "Initial call 15 NM out: 'Prachuap Tower, CATC 274, DA40, 15 miles north, 2900 feet, VFR from Hua Hin, for landing.' Military field — crisp full readbacks." },
+      { frac: 0.90, station: "Prachuap Tower 135.9", atc: "CATC 274, report right base runway 36, number 1.", pilot: "Report right base runway 36, number 1, CATC 274.", tip: "Khao Lom Muak headland S of the field — keep it in sight on the join." }
     ],
     arrival: [
-      { station: "Bang Phra Radio 122.5", atc: "CATC 274, roger, wind 070 degrees 6 knots, runway 06, land at your discretion.", pilot: "Runway 06, landing at my discretion, final, CATC 274.", tip: "AFIS cannot 'clear' you to land — the decision and announcement are yours." }
+      { station: "Prachuap Tower 135.9", atc: "CATC 274, wind 010 degrees 6 knots, runway 36, cleared to land.", pilot: "Cleared to land runway 36, CATC 274.", tip: "Stabilised by 300 ft AAL or go around. Sea breeze can gust across Ao Manao bay." }
     ]
   },
   "BP-PH": {
     ground: [
-      { station: "Bang Phra Radio 122.5", atc: "CATC 274, Bang Phra Radio, wind 240 degrees 5 knots, runway 24, QNH 1010, no reported traffic.", pilot: "Runway 24, QNH 1010, taxiing for departure runway 24, CATC 274.", tip: "Self-announce every intention at an AFIS field: taxi, backtrack, lining up, rolling." },
-      { station: "Self-announce", atc: "(Line up when the approach is clear.)", pilot: "Bang Phra traffic, CATC 274, lining up runway 24, departing to the northwest, Bang Phra.", pilotNote: true, tip: "Look before lining up — glider traffic has no radio in some cases." }
+      { station: "Prachuap Tower 135.9", atc: "CATC 274, Prachuap Tower, start-up approved, QNH 1010, runway 36, taxi via Alpha, hold short runway 36.", pilot: "Start-up approved, QNH 1010, taxi Alpha hold short runway 36, CATC 274.", tip: "Initial call: 'Prachuap Tower, CATC 274, DA40 on the apron, VFR to Hua Hin coastal via Sattakut, request start and taxi.'" },
+      { station: "Prachuap Tower 135.9", atc: "CATC 274, wind 020 degrees 7 knots, runway 36, cleared for take-off, right turn coastal northbound approved, report leaving the zone.", pilot: "Cleared for take-off runway 36, right turn coastal northbound, will report leaving the zone, CATC 274.", tip: "Track 029° up the coast, climb 1800." }
     ],
     enroute: [
-      { frac: 0.10, station: "Self-announce 122.5", atc: "(Clear of the circuit.)", pilot: "Bang Phra traffic, CATC 274, clear of the circuit to the northwest, climbing 5500, Bang Phra.", tip: "Then switch to Bangkok Information 122.7." },
-      { frac: 0.30, station: "Position report", atc: "(Overhead Chao Phraya mouth — compulsory report.)", pilot: "Bangkok Information, CATC 274, DA40, Chao Phraya mouth at 20, 5500 feet, VFR Bang Phra to Hua Hin, estimating Samut Sakhon at 29.", tip: "Groundspeed check here: revise all ETAs on the nav log." },
-      { frac: 0.42, station: "Position report", atc: "(Overhead Samut Sakhon — compulsory report.)", pilot: "Bangkok Information, CATC 274, Samut Sakhon at 29, 5500 feet, estimating Phetchaburi at 46.", tip: "Fuel log: note fuel state against plan." },
-      { frac: 0.62, station: "IN-FLIGHT EXERCISE", atc: "(Instructor: 'Weather ahead — divert to Ratchaburi.') Practise the diversion drill, then resume.", pilot: "(Diversion drill: note time, turn ~general heading, then measure track/distance, compute heading + ETA, inform ATC.)", tip: "Use the map DIVERT tool: click Ratchaburi, read the magenta diversion data." },
-      { frac: 0.75, station: "Hua Hin Approach 119.7", atc: "CATC 274, Hua Hin Approach, radar contact, information BRAVO current, QNH 1011, report Cha-am.", pilot: "QNH 1011, information Bravo, wilco, CATC 274.", tip: "Call with ATIS already copied: saves a transmission." },
-      { frac: 0.88, station: "Position report", atc: "(Overhead Cha-am — compulsory report.)", pilot: "Hua Hin Approach, CATC 274, Cha-am at 58, descending 2500, estimating Hua Hin at 06.", tip: "" },
-      { frac: 0.93, station: "Hua Hin Approach 119.7", atc: "CATC 274, contact Hua Hin Tower 118.1.", pilot: "Tower 118.1, CATC 274.", tip: "" }
+      { frac: 0.10, station: "Prachuap Tower 135.9", atc: "CATC 274, report leaving the zone, frequency change approved. Good day.", pilot: "Leaving the zone to the north, frequency change approved, CATC 274, good day.", tip: "Then monitor Hua Hin Approach 126.2. Squawk 1200." },
+      { frac: 0.30, station: "Position report", atc: "(Overhead Sattakut — Khung Tanot coast at Khao Sam Roi Yot. Compulsory report.)", pilot: "Hua Hin Approach, CATC 274, DA40, Sattakut at 18, 1800 feet, coastal VFR Prachuap to Hua Hin, estimating Khao Tao at 26.", tip: "Sam Roi Yot peaks (1,989 ft) just inland — you are BELOW the tops at 1800. Stay over the coast. Then descend 1400, turn 358°." },
+      { frac: 0.48, station: "IN-FLIGHT EXERCISE", atc: "(Instructor: 'Weather closing ahead — divert.' Practise the diversion drill using Pran Buri or direct inland, then resume.)", pilot: "(Diversion drill: time, rough heading, measure track/dist with the DIVERT tool, heading + ETA + fuel, tell ATC, log it.)", tip: "At 1400 ft coastal you have less time — decide early." },
+      { frac: 0.60, station: "Position report", atc: "(Overhead Ban Khao Tao — headland + reservoir. Compulsory report.)", pilot: "Hua Hin Approach, CATC 274, Khao Tao at 26, 1400 feet, estimating SE Point at 32.", tip: "GS check on this 15 NM leg — revise your ETAs. Turn 012° across the bay." },
+      { frac: 0.80, station: "Position report", atc: "(Overhead SE Point — offshore Ao Hua Hin. Report + start the rejoin climb.)", pilot: "Hua Hin Approach, CATC 274, SE Point at 32, climbing 2700, estimating Hua Hin at 36.", tip: "Per plan: climb 2700 on the 288° leg for the rejoin. Get information from ATIS 126.8 if not already copied." },
+      { frac: 0.88, station: "Hua Hin Approach 126.2", atc: "CATC 274, contact Hua Hin Tower 122.7.", pilot: "Tower 122.7, CATC 274.", tip: "" }
     ],
     arrival: [
-      { station: "Hua Hin Tower 118.1", atc: "CATC 274, Hua Hin Tower, join left downwind runway 16, number 2 to an ATR on 4 mile final, report downwind.", pilot: "Join left downwind runway 16, number 2, traffic in sight, will report downwind, CATC 274.", tip: "Wake turbulence: land beyond the ATR touchdown point." },
-      { station: "Hua Hin Tower 118.1", atc: "CATC 274, wind 150 degrees 9 knots, runway 16, cleared to land.", pilot: "Cleared to land runway 16, CATC 274.", tip: "Stabilised by 300 ft AAL or go around." }
+      { station: "Hua Hin Tower 122.7", atc: "CATC 274, Hua Hin Tower, join left downwind runway 16, number 2 to an ATR on 5 mile final, report downwind.", pilot: "Join left downwind runway 16, number 2, traffic in sight, will report downwind, CATC 274.", tip: "Wake turbulence: land beyond the ATR touchdown point." },
+      { station: "Hua Hin Tower 122.7", atc: "CATC 274, wind 150 degrees 9 knots, runway 16, cleared to land.", pilot: "Cleared to land runway 16, CATC 274.", tip: "Stabilised by 300 ft AAL or go around. Then log ON + block-in — hours = block time (durMin)." }
     ]
   },
   "PH-BK": {
     ground: [
-      { station: "ATIS 126.4", atc: "Hua Hin information CHARLIE, runway 16, wind 150 degrees 6 knots, CAVOK, temperature 32, QNH 1012.", pilot: "(Copy ATIS. Set QNH 1012.)", tip: "" },
+      { station: "ATIS 126.8", atc: "Hua Hin information CHARLIE, runway 16, wind 150 degrees 6 knots, CAVOK, temperature 32, QNH 1012.", pilot: "(Copy ATIS. Set QNH 1012.)", tip: "" },
       { station: "Hua Hin Ground 121.9", atc: "CATC 274, start-up approved, runway 16, QNH 1012, taxi Alpha, hold short runway 16.", pilot: "Start-up approved, QNH 1012, taxi Alpha hold short 16, CATC 274.", tip: "Initial call includes: destination Kamphaeng Saen VFR via Cha-am, Phetchaburi, Ratchaburi." },
-      { station: "Hua Hin Tower 118.1", atc: "CATC 274, wind 150 degrees 7 knots, runway 16, cleared for take-off, right turn northbound, report Cha-am.", pilot: "Cleared for take-off 16, right turn northbound, wilco, CATC 274.", tip: "" }
+      { station: "Hua Hin Tower 122.7", atc: "CATC 274, wind 150 degrees 7 knots, runway 16, cleared for take-off, right turn northbound, report Cha-am.", pilot: "Cleared for take-off 16, right turn northbound, wilco, CATC 274.", tip: "" }
     ],
     enroute: [
-      { frac: 0.05, station: "Hua Hin Tower 118.1", atc: "CATC 274, contact Approach 119.7.", pilot: "Approach 119.7, CATC 274.", tip: "" },
+      { frac: 0.05, station: "Hua Hin Tower 122.7", atc: "CATC 274, contact Approach 126.2.", pilot: "Approach 126.2, CATC 274.", tip: "" },
       { frac: 0.14, station: "Position report", atc: "(Overhead Cha-am.)", pilot: "Hua Hin Approach, CATC 274, Cha-am at 12, 4500 feet, estimating Phetchaburi at 24, Ratchaburi thereafter.", tip: "" },
-      { frac: 0.32, station: "Hua Hin Approach 119.7", atc: "CATC 274, leaving my area, monitor Bangkok Information 122.7, squawk 1200.", pilot: "Monitor 122.7, squawk 1200, CATC 274.", tip: "Inland now — hold your heading, trust the plan, check drift at Ratchaburi." },
+      { frac: 0.32, station: "Hua Hin Approach 126.2", atc: "CATC 274, leaving my area, monitor Bangkok Information 122.7, squawk 1200.", pilot: "Monitor 122.7, squawk 1200, CATC 274.", tip: "Inland now — hold your heading, trust the plan, check drift at Ratchaburi." },
       { frac: 0.50, station: "Position report", atc: "(Overhead Ratchaburi — compulsory report.)", pilot: "Bangkok Information, CATC 274, DA40, Ratchaburi at 35, 4500 feet, VFR Hua Hin to Kamphaeng Saen, estimating Kamphaeng Saen at 58.", tip: "FREDA check right after the call." },
       { frac: 0.72, station: "Kamphaeng Saen Tower 118.6", atc: "CATC 274, Kamphaeng Saen Tower, runway 06 in use, QNH 1012, report 5 miles southeast, expect straight-in approach, military traffic in the circuit.", pilot: "Runway 06, QNH 1012, will report 5 miles southeast, CATC 274.", tip: "Initial call 15 NM out. Military tower — crisp, complete readbacks." },
       { frac: 0.90, station: "Kamphaeng Saen Tower 118.6", atc: "CATC 274, number 1, runway 06, cleared straight-in approach, report 2 mile final.", pilot: "Cleared straight-in runway 06, will report 2 mile final, CATC 274.", tip: "" }
@@ -182,13 +176,13 @@ DATA.atc = {
       { frac: 0.12, station: "Position report", atc: "(Overhead Nakhon Pathom Chedi — compulsory report.)", pilot: "Kamphaeng Saen Tower, CATC 274, leaving your zone to the southeast, Nakhon Pathom at 08, climbing 5500.", pilotNote: true, tip: "Then monitor Bangkok Information 122.7." },
       { frac: 0.38, station: "Position report", atc: "(Overhead Ratchaburi — compulsory report.)", pilot: "Bangkok Information, CATC 274, DA40, Ratchaburi at 21, 5500 feet, VFR Kamphaeng Saen to Hua Hin, estimating Phetchaburi at 33.", tip: "Fuel log entry due here." },
       { frac: 0.45, station: "IN-FLIGHT EXERCISE", atc: "(Instructor: simulated engine roughness — run the trouble check, pick a field, then resume.)", pilot: "(Drill: Fuel pump ON, fuel sufficient?, mixture/power check, carb/alternate air, engine gauges, best field within glide 88 KIAS.)", tip: "This is a drill trigger — talk it through out loud like the real flight." },
-      { frac: 0.68, station: "Hua Hin Approach 119.7", atc: "CATC 274, Hua Hin Approach, radar contact, information DELTA, QNH 1011, report Cha-am.", pilot: "QNH 1011, information Delta, wilco, CATC 274.", tip: "" },
+      { frac: 0.68, station: "Hua Hin Approach 126.2", atc: "CATC 274, Hua Hin Approach, radar contact, information DELTA, QNH 1011, report Cha-am.", pilot: "QNH 1011, information Delta, wilco, CATC 274.", tip: "" },
       { frac: 0.85, station: "Position report", atc: "(Overhead Cha-am.)", pilot: "Hua Hin Approach, CATC 274, Cha-am at 47, descending 2500, estimating Hua Hin at 55.", tip: "" },
-      { frac: 0.92, station: "Hua Hin Approach 119.7", atc: "CATC 274, contact Tower 118.1.", pilot: "Tower 118.1, CATC 274.", tip: "" }
+      { frac: 0.92, station: "Hua Hin Approach 126.2", atc: "CATC 274, contact Tower 122.7.", pilot: "Tower 122.7, CATC 274.", tip: "" }
     ],
     arrival: [
-      { station: "Hua Hin Tower 118.1", atc: "CATC 274, join left downwind runway 16, report downwind.", pilot: "Join left downwind 16, wilco, CATC 274.", tip: "" },
-      { station: "Hua Hin Tower 118.1", atc: "CATC 274, wind 140 degrees 8 knots, runway 16, cleared to land.", pilot: "Cleared to land runway 16, CATC 274.", tip: "After landing: log ON time, then block-in time — hours = block time (durMin)." }
+      { station: "Hua Hin Tower 122.7", atc: "CATC 274, join left downwind runway 16, report downwind.", pilot: "Join left downwind 16, wilco, CATC 274.", tip: "" },
+      { station: "Hua Hin Tower 122.7", atc: "CATC 274, wind 140 degrees 8 knots, runway 16, cleared to land.", pilot: "Cleared to land runway 16, CATC 274.", tip: "After landing: log ON time, then block-in time — hours = block time (durMin)." }
     ]
   }
 };
@@ -342,6 +336,18 @@ const CONFIG_KEY = "nudryrun:config";
   try {
     const s = JSON.parse(localStorage.getItem(CONFIG_KEY));
     if (s && s.routes && s.aircraft) {
+      // Migration: when the factory data version changes (corrected routes/freqs),
+      // refresh factory content but keep the user's own routes and edits.
+      if (s.version !== DEFAULT_DATA.version) {
+        const factoryIds = DEFAULT_DATA.routes.map(r => r.id);
+        s.airports = JSON.parse(JSON.stringify(DEFAULT_DATA.airports));
+        s.vors = JSON.parse(JSON.stringify(DEFAULT_DATA.vors));
+        s.routes = [...JSON.parse(JSON.stringify(DEFAULT_DATA.routes)),
+                    ...s.routes.filter(r => !factoryIds.includes(r.id))];
+        s.atc = { ...(s.atc || {}), ...JSON.parse(JSON.stringify(DEFAULT_DATA.atc)) };
+        s.version = DEFAULT_DATA.version;
+        localStorage.setItem(CONFIG_KEY, JSON.stringify(s));
+      }
       Object.keys(DATA).forEach(k => delete DATA[k]);
       Object.assign(DATA, s);
       // pick up new top-level blocks added in later app versions

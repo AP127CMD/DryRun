@@ -86,8 +86,20 @@ button.on { border-color: var(--amb); color: var(--amb); box-shadow: 0 0 0 1px v
 .sim-bar .lbl { color: var(--dim); font-size: 11px; letter-spacing: .1em; }
 #draw-info { color: var(--amb); font-size: 12px; }
 #sim-stats { font-size: 12.5px; color: var(--txt); width: 100%; }
-.prog-track { grid-column: 1 / -1; height: 4px; background: #0c141c; }
-#sim-prog { height: 100%; width: 0; background: linear-gradient(90deg, var(--cyan), var(--mag)); transition: width .3s linear; }
+.prog-track {
+  grid-column: 1 / -1; position: relative; height: 14px; background: #0c141c;
+  cursor: ew-resize; touch-action: none; border-top: 1px solid #16222c;
+}
+#sim-prog { position: absolute; top: 0; left: 0; height: 100%; width: 0; background: linear-gradient(90deg, rgba(0,229,255,.55), rgba(255,46,196,.55)); pointer-events: none; }
+#sim-scrub {
+  position: absolute; top: 50%; left: 0; width: 14px; height: 22px; transform: translate(-50%, -50%);
+  background: var(--mag); border: 2px solid #fff; border-radius: 3px; pointer-events: none;
+  box-shadow: 0 0 8px rgba(255,46,196,.8); z-index: 2;
+}
+#sim-scrub::before {
+  content: "⇆"; position: absolute; inset: 0; color: #16000f; font-size: 10px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+}
 
 #map { min-height: 420px; height: 100%; background: #000; }
 .side {
@@ -116,6 +128,12 @@ button.on { border-color: var(--amb); color: var(--amb); box-shadow: 0 0 0 1px v
 /* leaflet popups */
 .leaflet-popup-content-wrapper { background: #0b141c; color: var(--txt); border: 1px solid #27414f; border-radius: 6px; }
 .leaflet-popup-tip { background: #0b141c; }
+.leaflet-popup-close-button {
+  width: 24px !important; height: 24px !important; font: 700 18px/22px "B612 Mono", monospace !important;
+  color: var(--txt) !important; background: #16232d !important; border: 1px solid #2a4452 !important;
+  border-radius: 50% !important; top: -10px !important; right: -10px !important; text-align: center;
+}
+.leaflet-popup-close-button:hover { background: var(--red) !important; color: #fff !important; border-color: var(--red) !important; }
 .pop { font-family: "B612 Mono", monospace; font-size: 12px; max-width: 260px; }
 .pop-title { color: var(--cyan); font-weight: 700; margin-bottom: 4px; }
 .pop-row { color: var(--txt); margin: 2px 0; }
@@ -180,10 +198,17 @@ button.stamp { padding: 2px 7px; font-size: 12px; }
 #modal { position: fixed; inset: 0; background: rgba(2,5,8,.78); display: none; align-items: center; justify-content: center; z-index: 2000; backdrop-filter: blur(3px); }
 #modal.open { display: flex; }
 .modal-box {
+  position: relative;
   background: var(--panel); border: 1px solid #2a4452; border-top: 3px solid var(--mag);
   width: min(560px, 92vw); max-height: 86vh; overflow-y: auto; border-radius: 6px; padding: 18px;
   box-shadow: 0 20px 60px rgba(0,0,0,.7);
 }
+.modal-x {
+  position: absolute; top: 10px; right: 10px; width: 30px; height: 30px; padding: 0;
+  font: 700 16px/1 "B612 Mono", monospace; background: #16232d; color: var(--txt);
+  border: 1px solid #2a4452; border-radius: 50%; cursor: pointer; z-index: 2;
+}
+.modal-x:hover { background: var(--red); color: #fff; border-color: var(--red); }
 .ev-station { font-size: 11px; letter-spacing: .14em; color: var(--cyan); margin-bottom: 8px; }
 .ev-station.ex { color: var(--red); }
 .ev-msg { font-family: "B612 Mono", monospace; font-size: 14px; line-height: 1.55; margin-bottom: 10px; }

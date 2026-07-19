@@ -178,7 +178,8 @@ function drawRoutes() {
       const html = `<div class="pop">
         <div class="pop-title">${w.id} · ${w.name} ${w.report ? '<span class="badge-rep">REPORT</span>' : ""}</div>
         <div class="pop-row">Plan ${w.alt.toLocaleString()} ft${legIn ? ` · MC ${pad3(legIn.mc)}° · ${legIn.dist.toFixed(1)} NM from ${legIn.from.id}` : ""}</div>
-        <div class="pop-cmt">${w.comment}</div></div>`;
+        <div class="pop-cmt">${w.comment}</div>
+        <div class="pop-actions"><button onclick="toggleReport('${rt.id}', ${i})">${w.report ? "◆ Unset reporting point" : "◇ Set as reporting point"}</button></div></div>`;
       L.marker([w.lat, w.lon], { icon: wptIcon(color, w.report) }).addTo(layerRoutes).bindPopup(html);
       L.marker([w.lat, w.lon], {
         icon: L.divIcon({ className: "", html: `<div class="wpt-lbl">${w.id}</div>`, iconSize: [60, 14], iconAnchor: [-8, 7] }),
@@ -225,6 +226,17 @@ window.editUserWpt = i => {
   userWpts[i].name = name; userWpts[i].comment = comment ?? ""; saveUser();
 };
 window.delUserWpt = i => { userWpts.splice(i, 1); saveUser(); };
+
+/* toggle a route waypoint as a compulsory reporting point (saved for later use) */
+window.toggleReport = (routeId, idx) => {
+  const rt = DATA.routes.find(r => r.id === routeId);
+  if (!rt || !rt.wpts[idx]) return;
+  rt.wpts[idx].report = !rt.wpts[idx].report;
+  saveDATA();
+  drawRoutes(); buildNavlog(); buildG1000Fpl();
+  if (typeof buildEditTab === "function" && document.getElementById("page-edit")?.classList.contains("on")) buildEditTab();
+  if (typeof flash === "function") flash(`${rt.wpts[idx].id}: reporting point ${rt.wpts[idx].report ? "SET ✔" : "removed"}`);
+};
 
 function onMapClick(e) {
   if (mode === "note") {
@@ -372,6 +384,29 @@ function buildEvents() {
   evs.sort((a, b) => a.s - b.s);
   sim.events = evs; sim.nextEv = 0;
 }
+/* elapsed minutes from block-off to distance s along the active route */
+function eteToS(s) {
+  const legs = routeLegs(activeRoute);
+  let acc = 0, t = 0;
+  for (const l of legs) {
+    if (s <= acc + l.dist) { t += (s - acc) / l.gs * 60; return t; }
+    t += l.ete; acc += l.dist;
+  }
+  return t;
+}
+/* time-travel: jump the simulator to distance s (NM) along the route */
+function scrubTo(s) {
+  if (!sim.total) { buildEvents(); }
+  s = Math.max(0, Math.min(sim.total, s));
+  sim.s = s;
+  sim.clockMin = 9 * 60 + eteToS(s);
+  sim.nextEv = sim.events.filter(e => e.s <= s).length;   // events before here won't re-fire until scrubbed back
+  if (s <= 0.02) { sim.phase = "ground"; sim.groundIdx = 0; }
+  else { sim.phase = "air"; sim.groundIdx = atcFor(activeRoute.id).ground.length; }
+  const b = document.getElementById("btn-startpause");
+  if (b) b.textContent = s > 0.02 ? "▶ RESUME" : "▶ START";
+  updateSimUI();
+}
 function altProfile(s) {
   const dep = apOf(activeRoute.dep, activeRoute).elev, dst = apOf(activeRoute.dest, activeRoute).elev;
   const climbGrad = DATA.aircraft.climbFpm / (DATA.aircraft.climbTas / 60);   // ft per NM
@@ -423,7 +458,9 @@ function updateSimUI() {
     `<b>${fmtClock(sim.clockMin)}L</b> · ${p.leg.from.id}→<b>${p.leg.to.id}</b> · HDG <b>${pad3(p.leg.hdg)}°</b> · ` +
     `${alt >= activeRoute.cruiseAlt - 50 ? "CRZ" : climbing ? "CLB" : "DES"} ${Math.round(alt).toLocaleString()} ft · ` +
     `GS ${Math.round(p.leg.gs)} · leg ${legRemain.toFixed(1)} NM · dest ${remain.toFixed(1)} NM`;
-  document.getElementById("sim-prog").style.width = (sim.s / sim.total * 100) + "%";
+  const pct = sim.s / sim.total * 100;
+  document.getElementById("sim-prog").style.width = pct + "%";
+  const sc = document.getElementById("sim-scrub"); if (sc) sc.style.left = pct + "%";
 }
 function startSim() {
   autoFit = false;
@@ -674,6 +711,7 @@ function selectRoute(id) {
   drawRoutes(); buildNavlog(); buildAtcTab(); buildEvents(); fuelPlan(); buildG1000Fpl();
   document.getElementById("sim-stats").textContent = "Ready — press START for the full chair flight.";
   document.getElementById("sim-prog").style.width = "0";
+  const sc0 = document.getElementById("sim-scrub"); if (sc0) sc0.style.left = "0";
   autoFit = true;
   setTimeout(() => { map.invalidateSize(); fitActive(); }, 120);
 }
@@ -712,6 +750,33 @@ window.addEventListener("DOMContentLoaded", () => {
   document.getElementById("btn-print").addEventListener("click", () => window.print());
   document.getElementById("btn-pdf").addEventListener("click", exportPDF);
   document.getElementById("btn-pdf2").addEventListener("click", exportPDF);
+
+  // modal close (X) — dismiss without resuming; the flight stays paused
+  document.getElementById("modal-x").addEventListener("click", () => {
+    document.getElementById("modal").classList.remove("open");
+    speechSynthesis.cancel();
+  });
+
+  // time-travel scrubber — drag the progress bar to jump anywhere in the flight
+  const track = document.getElementById("prog-track");
+  let scrubbing = false;
+  const scrubFrom = ev => {
+    const r = track.getBoundingClientRect();
+    const cx = ev.touches ? ev.touches[0].clientX : ev.clientX;
+    const frac = Math.max(0, Math.min(1, (cx - r.left) / r.width));
+    if (!sim.total) buildEvents();
+    if (sim.running) pauseSim();
+    scrubTo(frac * sim.total);
+  };
+  track.addEventListener("pointerdown", e => {
+    scrubbing = true; track.setPointerCapture?.(e.pointerId); scrubFrom(e); e.preventDefault();
+  });
+  track.addEventListener("pointermove", e => { if (scrubbing) scrubFrom(e); });
+  const stopScrub = () => { scrubbing = false; };
+  track.addEventListener("pointerup", stopScrub);
+  track.addEventListener("pointercancel", stopScrub);
+  window.addEventListener("pointerup", stopScrub);
+
   if (typeof initEditTab === "function") initEditTab();
   buildNavlog(); buildAtcTab(); buildPerf(); buildLessons();
   selectRoute(DATA.routes[0].id);

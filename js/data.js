@@ -8,7 +8,7 @@
    ============================================================ */
 
 const DATA = {};
-DATA.version = 2;   // bump when factory routes/airports change → triggers migration of saved configs
+DATA.version = 3;   // bump when factory routes/airports change → triggers migration of saved configs
 
 /* ---------- Airports (freqs per Nu's chart drawing) ---------- */
 DATA.airports = {
@@ -18,7 +18,7 @@ DATA.airports = {
     freqs: [
       ["ATIS", "126.8"], ["Hua Hin Ground", "121.9"],
       ["Hua Hin Tower", "122.7"], ["Hua Hin Approach", "126.2"],
-      ["NDB", "213"], ["VOR (HHN)", "113.3"]
+      ["Hua Hin NDB (HN)", "213"], ["Hua Hin VOR (HHN)", "113.3"]
     ],
     circuit: "LH RWY 16 / RH RWY 34, 1000 ft AAL",
     notes: "CATC home base. Watch airline traffic; coastal winds pick up after 11:00 local."
@@ -26,7 +26,7 @@ DATA.airports = {
   VTBP: {
     icao: "VTBP", name: "Prachuap Khiri Khan (Ao Manao)", lat: 11.7885, lon: 99.8046,
     elev: 17, rwy: "18/36 · 08/26", rwyLen: "RWY 18/36: 3445×130 ft (17') · RWY 08/26: 6560×130 ft (17')",
-    freqs: [["Prachuap Tower", "135.9"], ["NDB", "320"], ["DME", "113.7"]],
+    freqs: [["VTBP Tower", "135.9"], ["VTBP NDB (PJ)", "320"], ["VTBP DME (PCK)", "113.7"]],
     circuit: "As directed by TWR — military field (RTAF Wing 5)",
     notes: "Military airfield at Ao Manao bay. Khao Chong Krachok monkey-mountain N of town, Khao Lom Muak S of the field. Full crisp readbacks; comply with TWR."
   },
@@ -41,8 +41,8 @@ DATA.airports = {
 
 /* ---------- VOR / navaid reference (for FPL input, e.g. HHN/030/12) ---------- */
 DATA.vors = {
-  HHN: { name: "Hua Hin VOR 113.3 / NDB 213", lat: 12.6362, lon: 99.9515 },
-  PKN: { name: "Prachuap DME 113.7 / NDB 320", lat: 11.7885, lon: 99.8046 },
+  HHN: { name: "Hua Hin VOR 113.3 (HHN) · NDB 213 (HN)", lat: 12.6362, lon: 99.9515 },
+  PCK: { name: "VTBP DME 113.7 (PCK) · NDB 320 (PJ)", lat: 11.7885, lon: 99.8046 },
   BKK: { name: "Bangkok VOR/DME 110.6", lat: 13.6900, lon: 100.7660 },
   RBR: { name: "Ratchaburi (trg ref)", lat: 13.5360, lon: 99.8170 },
   KPS: { name: "Kamphaeng Saen (trg ref)", lat: 14.1020, lon: 99.9170 }

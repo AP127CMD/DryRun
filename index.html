@@ -55,7 +55,9 @@
     <span id="draw-info"></span>
     <div id="sim-stats">Ready — press START for the full chair flight. Click waypoints for briefing notes; ✎ DRAW adds your own points with comments; ⚠ DIVERT measures a diversion from present position.</div>
   </div>
-  <div class="prog-track"><div id="sim-prog"></div></div>
+  <div class="prog-track" id="prog-track" title="Drag to time-travel through the flight">
+    <div id="sim-prog"></div><div id="sim-scrub"></div>
+  </div>
   <div id="map"></div>
   <aside class="side">
     <h4>PFD — G1000 REFERENCE</h4>
@@ -166,6 +168,7 @@
 
 <!-- modal -->
 <div id="modal"><div class="modal-box">
+  <button id="modal-x" class="modal-x" title="Close (stay paused)">✕</button>
   <div id="modal-body"></div>
   <div class="modal-foot"><button id="modal-continue" class="primary">CONTINUE ▶</button></div>
 </div></div>

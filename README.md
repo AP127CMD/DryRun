@@ -1,4 +1,4 @@
-# AP127 DRY RUN — DA40 Cross-Country Chair-Flight Trainer
+# Nu's Dry Run — DA40 Cross-Country Chair-Flight Trainer
 
 Interactive web app for **dry-running (chair-flying) VFR cross-country training flights**
 out of Hua Hin (VTPH) in the DA40 CS, built for the AP127 ecosystem (CATC Hua Hin).
@@ -39,8 +39,24 @@ out of Hua Hin (VTPH) in the DA40 CS, built for the AP127 ecosystem (CATC Hua Hi
 - **LESSONS** — 6 structured dry-run lessons + all phases of flight as checkable
   DA40 training-flow checklists (progress saved locally).
 
+### v2 additions
+- **EDIT tab** — everything is configurable and saved (localStorage + export/import JSON):
+  aircraft parameters, routes & waypoints (add/delete/reorder/rename), the complete **ATC
+  radio scripts** per route, the VOR table, and the raw dataset (perf/checklists/lessons).
+- **Map notes** — free-placed notes on the satellite map: add (🗒 NOTE mode), edit, drag,
+  resize (S/M/L), recolor, delete; included in the PDF brief.
+- **FPL-style route input** — type a flight plan as text: `ID POSITION [ALT] [SPD] [RP] [# note]`
+  where POSITION is `lat,lon` or **VOR/RADIAL/DIST** (e.g. `HHN/030/12`); parses into a saved
+  route with altitude/speed changes the simulator and nav log respect.
+- **PDF export** — one-click flight brief (nav log incl. recorded ATO/fuel/remarks, waypoint
+  briefing, frequencies, full radio script, map notes) via print-to-PDF.
+- **Password gate** — Cloudflare Pages Function middleware (`functions/_middleware.js`):
+  HMAC-signed 30-day HttpOnly cookie; password in the `DRYRUN_PASSWORD` project secret.
+  Change it: `printf 'NewPass' | npx wrangler pages secret put DRYRUN_PASSWORD --project-name ap127-dryrun`
+  then redeploy.
+
 ## Stack / deploy
-Pure static (HTML/CSS/JS, Leaflet + B612 fonts from CDN, no build step).
+Static HTML/CSS/JS (Leaflet + B612 fonts from CDN, no build step) + one Pages Function for auth.
 
 ```bash
 npx wrangler pages deploy /Users/nugui/AP127_DryRun --project-name ap127-dryrun --branch main

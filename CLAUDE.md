@@ -1,5 +1,7 @@
 # Nu's Dry Run (AP127_DryRun) — Claude Code Context
 
+@~/AP127_Docs/claude/ap127-ecosystem.md
+
 DA40 CS cross-country **chair-flight (dry run) trainer** for CATC Hua Hin student pilot.
 Static site + one CF Pages Function (password gate) — no build step, no framework.
 
@@ -37,6 +39,12 @@ Local python server serves NO functions → app opens without login in dev (by d
   replaces DATA in place; `saveDATA()`/`resetDATA()`; map notes in `mapNotes` key
 - PDF export = print-to-PDF: `exportPDF()` fills `#brief`, body class `printing-brief`,
   print CSS shows only the brief
+- **Time-travel:** `#prog-track` is a draggable scrubber → `scrubTo(s)` (uses `eteToS(s)` for
+  clock, resets `sim.nextEv` so events re-fire when scrubbed back); handle = `#sim-scrub`
+- **Reporting-point toggle:** `window.toggleReport(routeId, idx)` flips `wpt.report` + `saveDATA()`;
+  wired from each route-waypoint map popup
+- Close buttons: Leaflet `.leaflet-popup-close-button` restyled (round ×); modal `#modal-x`
+  closes without resuming
 - All hours language = block time (durMin)
 
 ## Verify after changes

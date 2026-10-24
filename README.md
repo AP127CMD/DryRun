@@ -50,6 +50,13 @@ out of Hua Hin (VTPH) in the DA40 CS, built for the AP127 ecosystem (CATC Hua Hi
   route with altitude/speed changes the simulator and nav log respect.
 - **PDF export** — one-click flight brief (nav log incl. recorded ATO/fuel/remarks, waypoint
   briefing, frequencies, full radio script, map notes) via print-to-PDF.
+- **Time-travel scrubber** — drag the progress bar under the sim toolbar to jump the aircraft
+  (map + G1000 PFD + clock) to any point in the flight; RESUME plays on from there.
+- **Reporting-point toggle** — every waypoint popup has a *Set / Unset reporting point* button;
+  the change saves to the route config (persists for later use) and updates the nav log.
+- **Frequencies (per Nu's chart):** Hua Hin GND 121.9 · TWR 122.7 · APP 126.2 · ATIS 126.8 ·
+  VOR 113.3 (HHN) · NDB 213 (HN); VTBP TWR 135.9 · NDB 320 (PJ) · DME 113.7 (PCK).
+- **Close buttons** — clear round **×** on every map popup and on the in-flight event modal.
 - **Password gate** — Cloudflare Pages Function middleware (`functions/_middleware.js`):
   HMAC-signed 30-day HttpOnly cookie; password in the `DRYRUN_PASSWORD` project secret.
   Change it: `printf 'NewPass' | npx wrangler pages secret put DRYRUN_PASSWORD --project-name ap127-dryrun`
